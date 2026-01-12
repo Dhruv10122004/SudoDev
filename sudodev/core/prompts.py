@@ -1,80 +1,120 @@
 from typing import List, Dict
 
+def detect_framework(issue_desc: str, repo_info: str = None) -> str:
+    """Detect the framework/test type from issue and repo context"""
+    issue_lower = issue_desc.lower()
+    repo_lower = (repo_info or '').lower()
+    
+    # Check for Django
+    if 'django' in issue_lower or 'django' in repo_lower or '/settings.py' in repo_lower:
+        return 'django'
+    
+    # Check for Flask
+    if 'flask' in issue_lower or 'flask' in repo_lower:
+        return 'flask'
+    
+    # Check for pytest
+    if 'pytest' in issue_lower or 'test_' in issue_lower or 'pytest.ini' in repo_lower:
+        return 'pytest'
+    
+    # Check for unittest
+    if 'unittest' in issue_lower or 'import unittest' in issue_desc:
+        return 'unittest'
+    
+    # Default to generic Python
+    return 'generic'
+
 def build_improved_reproduce_prompt(issue_desc: str, repo_info: str = None) -> str:
     """Build reproduction prompt with framework detection"""
     
-    # Detect framework
-    is_django = 'django' in issue_desc.lower() or (repo_info and 'django' in repo_info.lower())
-    is_flask = 'flask' in issue_desc.lower()
+    framework = detect_framework(issue_desc, repo_info)
     
-    base_prompt = f"""You are a software testing expert. Write a Python script that reproduces the bug.
+    base_prompt = f"""Write a Python script that reproduces this bug:
 
-Issue Description:
 {issue_desc}
 
-Requirements:
-1. Write a complete, runnable Python script
-2. The script should clearly demonstrate the bug
-3. Include comments explaining expected vs actual behavior
-4. Use assertions or print statements to show the bug
-5. Make the script self-contained
+The script should:
+- Clearly demonstrate the bug
+- Fail (with an error or assertion) if the bug exists
+- Be minimal and self-contained
+- Use assertions to verify expected behavior
+
 """
 
-    if is_django:
-        base_prompt += """
-6. **IMPORTANT**: For Django projects, include this setup at the beginning:
+    if framework == 'django':
+        base_prompt += """For Django projects, set up the environment first:
 
 ```python
 import os
+import sys
 import django
 from django.conf import settings
 
-# Configure Django settings FIRST
 if not settings.configured:
     settings.configure(
         DEBUG=True,
-        DATABASES={
-            'default': {
-                'ENGINE': 'django.db.backends.sqlite3',
-                'NAME': ':memory:',
-            }
-        },
-        INSTALLED_APPS=[
-            'django.contrib.contenttypes',
-            'django.contrib.auth',
-        ],
-        SECRET_KEY='test-secret-key',
+        DATABASES={'default': {'ENGINE': 'django.db.backends.sqlite3', 'NAME': ':memory:'}},
+        INSTALLED_APPS=['django.contrib.contenttypes', 'django.contrib.auth'],
+        SECRET_KEY='test',
+        USE_TZ=True,
     )
     django.setup()
 
-# Import Django models/components AFTER django.setup()
-from django.db import models
-from django.db.models.expressions import RawSQL  # Note: RawSQL is in expressions module, not db.models
+from django.db import models, connection
+from django.db.models.expressions import RawSQL, OrderBy
+
+print("Testing bug...")
 ```
 
-Then proceed with your test code using these imports.
 """
     
-    elif is_flask:
-        base_prompt += """
-6. **IMPORTANT**: For Flask projects, create a test app context:
+    elif framework == 'flask':
+        base_prompt += """For Flask:
 
 ```python
 from flask import Flask
+
 app = Flask(__name__)
 app.config['TESTING'] = True
+
 with app.app_context():
-    # Your test code here
+    # Your test code
+    pass
 ```
+
 """
     
-    base_prompt += """
-Output Format:
-Provide ONLY the Python code wrapped in ```python blocks. No explanations outside the code block.
+    elif framework in ['pytest', 'unittest']:
+        base_prompt += """For testing frameworks:
+
+```python
+import sys
+
+# Your test code - create a simple test function
+def test_bug():
+    result = function_with_bug()
+    assert result == expected, f"Bug: got {result}, expected {expected}"
+
+if __name__ == '__main__':
+    test_bug()
+    print("Test passed")
+```
+
+"""
+    
+    base_prompt += """Structure your test like:
+
+```python
+print("Testing [description]")
+result = function_that_has_bug()
+assert result == expected_value, f"Bug: got {result}, expected {expected_value}"
+```
+
+Return ONLY Python code in a ```python``` block.
 """
     
     if repo_info:
-        base_prompt += f"\n\nRepository Context:\n{repo_info[:500]}\n"
+        base_prompt += f"\nContext:\n{repo_info[:500]}\n"
     
     return base_prompt
 

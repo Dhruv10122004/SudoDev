@@ -46,6 +46,7 @@ class ImprovedAgent:
         self.repro_output = ""
         self.target_files = []
         self.keywords = {}
+        self.patches = []
 
     def run(self):
         log_step("INIT", f"Starting improved run for {self.issue['instance_id']}")
@@ -75,6 +76,11 @@ class ImprovedAgent:
         finally:
             logger.info(f"\n{self.feedback_loop.get_summary()}")
             self.sandbox.cleanup()
+    
+    def get_patch(self) -> str:
+        if not self.patches:
+            return ""
+        return "\n\n".join(self.patches)
 
     def _extract_keywords(self):
         log_step("ANALYZE", "Extracting keywords from the issue...")
@@ -283,6 +289,7 @@ class ImprovedAgent:
             diff = create_diff_patch(file_content, fixed_code, filepath)
         
         if diff:
+            self.patches.append(diff)
             print(f"\nChanges to {filepath}:")
             print(diff[:800] + "..." if len(diff) > 800 else diff)
         
