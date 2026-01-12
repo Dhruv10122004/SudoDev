@@ -1,14 +1,19 @@
 [project]
 name = "sudodev"
-version = "0.1.0"
-description = ""
+version = "0.2.0"
+description = "code fixing agent"
 authors = [
     {name = "akshitguptaa",email = "akshitguptaa29@gmail.com"}
 ]
-license = {text = "MIT"}
+license = {text = "Apache-2.0"}
+license-file = "LICENSE"
 readme = "README.md"
 requires-python = ">=3.12"
 dependencies = [
+    "fastapi>=0.109.0",
+    "uvicorn[standard]>=0.25.0",
+    "pydantic>=2.0.0",
+    "websockets>=12.0"
 ]
 
 [dependency-groups]
@@ -18,7 +23,13 @@ dev = [
     "datasets (>=4.4.1,<5.0.0)"
 ]
 
+[project.scripts]
+sudodev-server = "sudodev.server.main:main"
 
 [build-system]
 requires = ["poetry-core>=2.0.0,<3.0.0"]
 build-backend = "poetry.core.masonry.api"
+
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["sudodev*"]
