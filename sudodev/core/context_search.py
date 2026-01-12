@@ -161,14 +161,13 @@ CONCEPTS: concept1, concept2
                 sections_info.append(f"{item['type']} {item['name']} (score: {item['score']})")
                 current_chars += section_chars
             
-            if not relevant_sections:
-                relevant_sections.append('\n'.join(lines[:200]))
-                sections_info.append("File header (no specific matches)")
-
-            result = "\n\n# ===== RELEVANT SECTIONS =====\n\n".join(relevant_sections)
-        
-            logger.info(f"Extracted {len(relevant_sections)} sections ({current_chars} chars)")
-            return result, sections_info
+        if not relevant_sections:
+            relevant_sections.append('\n'.join(lines[:200]))
+            sections_info.append("File header (no specific matches)")
+        result = "\n\n# ===== RELEVANT SECTIONS =====\n\n".join(relevant_sections)
+    
+        logger.info(f"Extracted {len(relevant_sections)} sections ({current_chars} chars)")
+        return result, sections_info
     
     def _score_relevance(
         self,

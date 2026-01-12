@@ -22,14 +22,15 @@ Requirements:
 
     if is_django:
         base_prompt += """
-6. **IMPORTANT**: For Django projects, include this setup at the beginning:
+6. **CRITICAL DJANGO SETUP - FOLLOW THIS EXACT ORDER:**
 
+**YOU MUST FOLLOW THIS STRUCTURE EXACTLY:**
 ```python
 import os
 import django
 from django.conf import settings
 
-# Configure Django settings FIRST
+# STEP 1: Configure Django FIRST (before ANY other Django imports)
 if not settings.configured:
     settings.configure(
         DEBUG=True,
@@ -44,21 +45,62 @@ if not settings.configured:
             'django.contrib.auth',
         ],
         SECRET_KEY='test-secret-key',
+        USE_TZ=True,
     )
-    django.setup()
 
-# Import Django models/components AFTER django.setup()
+# STEP 2: Call setup() immediately after configure()
+django.setup()
+
+# STEP 3: NOW you can import Django components (ONLY AFTER setup)
 from django.db import models
-from django.db.models.expressions import RawSQL  # Note: RawSQL is in expressions module, not db.models
+from django.db.models import Q, Subquery, F
+from django.db.models.expressions import RawSQL
+from django.db.models.sql.compiler import SQLCompiler
+
+# Your test code here...
 ```
 
-Then proceed with your test code using these imports.
+**MANDATORY RULES (WILL CRASH IF NOT FOLLOWED):**
+- settings.configure() must be called BEFORE importing models, queries, expressions, or any Django ORM
+- django.setup() must be called immediately after configure()
+- Import django.db.models and related components ONLY AFTER django.setup()
+- Do NOT define Model classes unless absolutely necessary
+- For SQL/compiler/expression bugs, test the component directly without defining models
+
+**Example for SQL/Compiler bugs (preferred approach):**
+```python
+# Do the setup first (as shown above)
+django.setup()
+
+# Then import what you need
+from django.db.models.expressions import RawSQL
+
+# Test the specific bug without defining models
+sql = RawSQL("SELECT * FROM table\\nORDER BY id", [])
+# Test code to reproduce the bug
+print("Testing multiline SQL:", repr(sql.sql))
+```
+
+**Only if you MUST define a model:**
+```python
+# Setup first (as shown above)
+django.setup()
+
+# Import after setup
+from django.db import models
+
+# Define model after all setup is complete
+class TestModel(models.Model):
+    name = models.CharField(max_length=100)
+    
+    class Meta:
+        app_label = 'test_app'  # Required when not in INSTALLED_APPS
+```
 """
     
     elif is_flask:
         base_prompt += """
 6. **IMPORTANT**: For Flask projects, create a test app context:
-
 ```python
 from flask import Flask
 app = Flask(__name__)
@@ -69,12 +111,13 @@ with app.app_context():
 """
     
     base_prompt += """
+
 Output Format:
 Provide ONLY the Python code wrapped in ```python blocks. No explanations outside the code block.
 """
     
     if repo_info:
-        base_prompt += f"\n\nRepository Context:\n{repo_info[:500]}\n"
+        base_prompt += f"\n\nRepository Context (to understand the project structure):\n{repo_info[:500]}\n"
     
     return base_prompt
 

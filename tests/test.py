@@ -186,7 +186,7 @@ def test_end_to_end():
     try:
         from datasets import load_dataset
         from sudodev.core.agent import Agent
-        from sudodev.core.core.improved_agent import ImprovedAgent
+        from sudodev.core.improved_agent import ImprovedAgent
         
         print("\nLoading SWE-bench dataset...")
         dataset = load_dataset("princeton-nlp/SWE-bench_Lite", split="test")
