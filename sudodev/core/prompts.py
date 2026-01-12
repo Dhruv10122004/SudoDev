@@ -44,84 +44,33 @@ The script should:
     if framework == 'django':
         base_prompt += """For Django projects, set up the environment first:
 
-**YOU MUST FOLLOW THIS STRUCTURE EXACTLY:**
 ```python
 import os
 import sys
 import django
 from django.conf import settings
 
-# STEP 1: Configure Django FIRST (before ANY other Django imports)
 if not settings.configured:
     settings.configure(
         DEBUG=True,
-        DATABASES={
-            'default': {
-                'ENGINE': 'django.db.backends.sqlite3',
-                'NAME': ':memory:',
-            }
-        },
-        INSTALLED_APPS=[
-            'django.contrib.contenttypes',
-            'django.contrib.auth',
-        ],
-        SECRET_KEY='test-secret-key',
+        DATABASES={'default': {'ENGINE': 'django.db.backends.sqlite3', 'NAME': ':memory:'}},
+        INSTALLED_APPS=['django.contrib.contenttypes', 'django.contrib.auth'],
+        SECRET_KEY='test',
         USE_TZ=True,
     )
+    django.setup()
 
-# STEP 2: Call setup() immediately after configure()
-django.setup()
+from django.db import models, connection
+from django.db.models.expressions import RawSQL, OrderBy
 
-# STEP 3: NOW you can import Django components (ONLY AFTER setup)
-from django.db import models
-from django.db.models import Q, Subquery, F
-from django.db.models.expressions import RawSQL
-from django.db.models.sql.compiler import SQLCompiler
-
-# Your test code here...
+print("Testing bug...")
 ```
 
-**MANDATORY RULES (WILL CRASH IF NOT FOLLOWED):**
-- settings.configure() must be called BEFORE importing models, queries, expressions, or any Django ORM
-- django.setup() must be called immediately after configure()
-- Import django.db.models and related components ONLY AFTER django.setup()
-- Do NOT define Model classes unless absolutely necessary
-- For SQL/compiler/expression bugs, test the component directly without defining models
-
-**Example for SQL/Compiler bugs (preferred approach):**
-```python
-# Do the setup first (as shown above)
-django.setup()
-
-# Then import what you need
-from django.db.models.expressions import RawSQL
-
-# Test the specific bug without defining models
-sql = RawSQL("SELECT * FROM table\\nORDER BY id", [])
-# Test code to reproduce the bug
-print("Testing multiline SQL:", repr(sql.sql))
-```
-
-**Only if you MUST define a model:**
-```python
-# Setup first (as shown above)
-django.setup()
-
-# Import after setup
-from django.db import models
-
-# Define model after all setup is complete
-class TestModel(models.Model):
-    name = models.CharField(max_length=100)
-    
-    class Meta:
-        app_label = 'test_app'  # Required when not in INSTALLED_APPS
-```
 """
     
-    elif is_flask:
-        base_prompt += """
-6. **IMPORTANT**: For Flask projects, create a test app context:
+    elif framework == 'flask':
+        base_prompt += """For Flask:
+
 ```python
 from flask import Flask
 
@@ -135,14 +84,37 @@ with app.app_context():
 
 """
     
-    base_prompt += """
+    elif framework in ['pytest', 'unittest']:
+        base_prompt += """For testing frameworks:
 
-Output Format:
-Provide ONLY the Python code wrapped in ```python blocks. No explanations outside the code block.
+```python
+import sys
+
+# Your test code - create a simple test function
+def test_bug():
+    result = function_with_bug()
+    assert result == expected, f"Bug: got {result}, expected {expected}"
+
+if __name__ == '__main__':
+    test_bug()
+    print("Test passed")
+```
+
+"""
+    
+    base_prompt += """Structure your test like:
+
+```python
+print("Testing [description]")
+result = function_that_has_bug()
+assert result == expected_value, f"Bug: got {result}, expected {expected_value}"
+```
+
+Return ONLY Python code in a ```python``` block.
 """
     
     if repo_info:
-        base_prompt += f"\n\nRepository Context (to understand the project structure):\n{repo_info[:500]}\n"
+        base_prompt += f"\nContext:\n{repo_info[:500]}\n"
     
     return base_prompt
 

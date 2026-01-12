@@ -1,0 +1,1 @@
+from sudodev.server.main import app
