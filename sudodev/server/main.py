@@ -2,15 +2,21 @@ from fastapi import FastAPI, BackgroundTasks
 from fastapi.middleware.cors import CORSMiddleware
 import uuid
 import logging
+import os
 from datetime import datetime
 from datasets import load_dataset
 
 from sudodev.server.models import AgentRunRequest, AgentRunResponse, AgentStatusResponse
+from sudodev.core.cache_manager import InstanceCacheManager
 
 # Load SWE-bench dataset at startup (cached for fast lookups)
 print("Loading SWE-bench dataset...")
 swe_bench_dataset = load_dataset("princeton-nlp/SWE-bench_Lite", split="test")
 print(f"Loaded {len(swe_bench_dataset)} issues from SWE-bench")
+
+cache_dir = os.getenv("SWEBENCH_CACHE_DIR", "/app/cache/swebench")
+cache_manager = InstanceCacheManager(cache_dir)
+print(f"Cache manager initialized at {cache_dir}")
 
 app = FastAPI()
 
@@ -55,7 +61,7 @@ def run_agent(run_id: str, request: AgentRunRequest):
     from sudodev.core.utils.logger import setup_logger
     
     agent_runs[run_id]["status"] = "running"
-    agent_runs[run_id]["message"] = "Agent is processing..."
+    agent_runs[run_id]["message"] = "Preparing instance..."
     
     log_handler = LogCaptureHandler(run_id)
     root_logger = logging.getLogger()
@@ -69,7 +75,20 @@ def run_agent(run_id: str, request: AgentRunRequest):
         if not issue:
             raise FileNotFoundError(f"Instance {request.instance_id} not found in SWE-bench dataset")
         
+        add_log(run_id, f"[CACHE] Checking cache for {request.instance_id}...", 0)
+        if not cache_manager.is_instance_cached(request.instance_id):
+            add_log(run_id, f"[CACHE] Instance not cached, downloading from SWE-bench...", 0)
+            agent_runs[run_id]["message"] = "Downloading instance environment..."
+            
+            if not cache_manager.download_instance(request.instance_id):
+                raise Exception(f"Failed to download instance {request.instance_id}")
+            
+            add_log(run_id, f"[CACHE] Instance cached successfully", 0)
+        else:
+            add_log(run_id, f"[CACHE] Using cached instance ✓", 0)
+        
         add_log(run_id, f"[INIT] Agent initialized for {request.instance_id}", 0)
+        agent_runs[run_id]["message"] = "Agent is processing..."
         time.sleep(0.5)
         
         agent = ImprovedAgent(issue)
@@ -142,3 +161,12 @@ def get_status(run_id: str):
 @app.get("/api/runs")
 def list_runs():
     return {"runs": list(agent_runs.keys())}
+
+@app.get("/api/cache/status")
+def cache_status():
+    return cache_manager.get_cache_info()
+
+@app.delete("/api/cache/clear")
+def clear_cache(instance_id: str = None):
+    cache_manager.clear_cache(instance_id)
+    return {"message": f"Cache cleared for {instance_id}" if instance_id else "All cache cleared"}
