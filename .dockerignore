@@ -1,0 +1,28 @@
+.DS_Store
+Thumbs.db
+.git
+.gitignore
+.vscode
+.idea
+*.swp
+
+# Python & Node
+venv
+__pycache__
+*.pyc
+*.egg-info
+node_modules
+.next
+
+# Testing & Logs
+tests
+.pytest_cache
+.coverage
+*.log
+logs
+
+.env
+cache
+SWE-bench
+*.md
+LICENSE

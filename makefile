@@ -1,12 +1,25 @@
-install:
-	pip install -e .
-
 test:
-	pytest tests/
+	python tests/test.py
 
 run:
-	python -m sudodev
+	python -m uvicorn sudodev.server.main:app --reload --host 0.0.0.0 --port 8000
 
 clean:
-	rm -rf build dist .pytest_cache
-	find . -name "*.pyc" -delete
+	git clean -Xdf
+	
+docker-up:
+	docker-compose up
+
+docker-build:
+	docker-compose up --build
+
+docker-down:
+	docker-compose down
+
+docker-logs:
+	docker-compose logs -f
+
+docker-rebuild:
+	docker-compose down
+	docker-compose build --no-cache
+	docker-compose up

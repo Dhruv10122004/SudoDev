@@ -1,0 +1,45 @@
+version: '3.8'
+
+services:
+  backend:
+    build:
+      context: .
+      dockerfile: containers/backend.Dockerfile
+    container_name: sudodev-backend
+    ports:
+      - "8000:8000"
+    volumes:
+      - ./sudodev:/app/sudodev
+      - ./cache:/app/cache
+      - /var/run/docker.sock:/var/run/docker.sock
+    environment:
+      - GROQ_API_KEY=${GROQ_API_KEY}
+      - PYTHONUNBUFFERED=1
+      - SWEBENCH_CACHE_DIR=/app/cache/swebench
+    command: uvicorn sudodev.server.main:app --host 0.0.0.0 --port 8000 --reload
+    networks:
+      - sudodev-network
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: ../containers/frontend.Dockerfile
+    container_name: sudodev-frontend
+    ports:
+      - "3000:3000"
+    volumes:
+      - ./frontend/app:/app/app
+      - ./frontend/components:/app/components
+      - /app/node_modules
+      - /app/.next
+    environment:
+      - NEXT_PUBLIC_API_URL=http://backend:8000
+    command: npm run dev -- --turbo
+    depends_on:
+      - backend
+    networks:
+      - sudodev-network
+
+networks:
+  sudodev-network:
+    driver: bridge
