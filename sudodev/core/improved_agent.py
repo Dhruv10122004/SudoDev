@@ -110,6 +110,25 @@ class ImprovedAgent:
             return '\n'.join(files)
         return "Error getting file list"
 
+    def _resolve_file_paths(self, paths):
+        # find the actual full path in the repo
+        results = []
+        
+        for path in paths:
+            path = path.replace('/testbed/', '')
+            filename = path.split('/')[-1]
+            
+            exit_code, found = self.sandbox.run_command(
+                f"find /testbed -name '{filename}' -type f | head -1"
+            )
+            
+            if exit_code == 0 and found.strip():
+                actual_path = found.strip().replace('/testbed/', '')
+                results.append(actual_path)
+                logger.info(f"Found {filename} at {actual_path}")
+        
+        return results
+
     def _reproduce_bug(self):
         log_step("REPRODUCE", "Generating reproduction script with framework detection...")
 
@@ -148,8 +167,10 @@ class ImprovedAgent:
 
         if potential_files:
             log_success(f"Found explicit file mentions: {potential_files}")
-            self.target_files = potential_files[:3]
-            return True
+            resolved = self._resolve_file_paths(potential_files[:5])
+            if resolved:
+                self.target_files = resolved[:3]
+                return True
         
         file_tree = self._get_file_tree(max_files=200)
 
@@ -164,9 +185,11 @@ class ImprovedAgent:
             files = extract_file_paths(response)
 
             if files:
-                self.target_files = files[:3]
-                log_success(f"Smart search identified: {self.target_files}")
-                return True
+                resolved = self._resolve_file_paths(files[:5])
+                if resolved:
+                    self.target_files = resolved[:3]
+                    log_success(f"Smart search identified: {self.target_files}")
+                    return True
         except Exception as e:
             logger.error(f"Smart search failed: {e}")
 

@@ -48,14 +48,19 @@ class InstanceCacheManager:
     # download if not
     def _docker_image_exists(self, instance_id: str) -> bool:
         try:
-            image_name = f"sweb.eval.x86_64.{instance_id}"
             result = subprocess.run(
-                ["docker", "images", "-q", image_name],
+                ["docker", "images", "--format", "{{.Repository}}:{{.Tag}}"],
                 capture_output=True,
                 text=True,
                 timeout=10
             )
-            return bool(result.stdout.strip())
+            
+            for line in result.stdout.strip().split('\n'):
+                if instance_id in line and 'sweb.eval' in line:
+                    logger.info(f"Found Docker image: {line}")
+                    return True
+            
+            return False
         except Exception as e:
             logger.warning(f"Failed to check Docker image: {e}")
             return False
@@ -81,8 +86,7 @@ class InstanceCacheManager:
                 "--instance_ids", instance_id,
                 "--run_id", "build_check",
                 "--max_workers", "1",
-                "--predictions_path", str(self.trigger_file),
-                "--cache_level", "instance"
+                "--predictions_path", str(self.trigger_file)
             ]
             
             logger.info(f"Running: {' '.join(command)}")

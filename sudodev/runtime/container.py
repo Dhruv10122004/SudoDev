@@ -16,13 +16,18 @@ class Sandbox:
     def _find_image_name(self, instance_id):
         try:
             images = self.client.images.list()
-            search_term = instance_id.split("__")[-1] if "__" in instance_id else instance_id
+            issue_part = instance_id.split("__")[-1] if "__" in instance_id else instance_id
+            
             for img in images:
                 for tag in img.tags:
-                    if search_term in tag and "sweb.eval" in tag:
+                    if issue_part in tag and "sweb.eval" in tag:
+                        logger.info(f"Found image for {instance_id}: {tag}")
                         return tag
+            
+            logger.warning(f"Image not found for {instance_id}, using default format")
             return f"sweb.eval.x86_64.{instance_id}"
-        except Exception:
+        except Exception as e:
+            logger.error(f"Error searching for image: {e}")
             return f"sweb.eval.x86_64.{instance_id}"
 
     def start(self):
