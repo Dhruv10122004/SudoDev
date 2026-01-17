@@ -8,18 +8,18 @@ clean:
 	git clean -Xdf
 	
 docker-up:
-	docker-compose up
+	docker compose up
 
 docker-build:
-	docker-compose up --build
+	docker compose up --build
 
 docker-down:
-	docker-compose down
+	docker compose down
 
 docker-logs:
-	docker-compose logs -f
+	docker compose logs -f
 
 docker-rebuild:
-	docker-compose down
-	docker-compose build --no-cache
-	docker-compose up
+	docker compose down
+	docker compose build --no-cache
+	docker compose up
