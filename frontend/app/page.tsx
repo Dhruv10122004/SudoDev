@@ -14,9 +14,14 @@ const steps = [
   { id: "verify", label: "Verify", icon: TestTube },
 ];
 
+type InputMode = "swebench" | "github" | null;
+
 export default function Home() {
   const [view, setView] = useState("input");
+  const [mode, setMode] = useState<InputMode>(null);
   const [instanceId, setInstanceId] = useState("");
+  const [githubRepoUrl, setGithubRepoUrl] = useState("");
+  const [githubIssueUrl, setGithubIssueUrl] = useState("");
   const [context, setContext] = useState("");
   const [runId, setRunId] = useState("");
   const [status, setStatus] = useState("idle");
@@ -73,31 +78,64 @@ export default function Home() {
     setStatus("pending");
 
     try {
+      // Prepare request based on mode
+      let requestBody;
+      
+      if (mode === "github") {
+        requestBody = {
+          mode: "github",
+          github_url: githubRepoUrl,
+          issue_url: githubIssueUrl,
+          problem_statement: context || null,
+        };
+      } else {
+        // SWE-bench mode
+        requestBody = {
+          mode: "swebench",
+          instance_id: instanceId,
+          problem_statement: context || null,
+        };
+      }
+
+      console.log("Sending request:", requestBody);
+
       // Call the backend API to start agent run
       const response = await fetch("http://localhost:8000/api/run", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
         },
-        body: JSON.stringify({
-          instance_id: instanceId,
-          problem_statement: context,
-        }),
+        body: JSON.stringify(requestBody),
       });
 
+      if (!response.ok) {
+        const errorText = await response.text();
+        throw new Error(`HTTP ${response.status}: ${errorText}`);
+      }
+
       const data = await response.json();
+      console.log("Response from backend:", data);
 
       if (data.run_id) {
         setRunId(data.run_id);
         setStatus("processing");
         setView("hud");
       } else {
-        throw new Error("Failed to start agent run");
+        throw new Error(JSON.stringify(data));
       }
     } catch (error) {
       console.error("Error starting agent:", error);
       setStatus("failed");
-      alert("Failed to start agent. Make sure the backend is running on port 8000.");
+      
+      let errorMessage = "Failed to start agent. ";
+      if (error instanceof Error) {
+        errorMessage += error.message;
+      } else {
+        errorMessage += "Unknown error occurred";
+      }
+      errorMessage += "\n\nMake sure the backend is running on port 8000.";
+      
+      alert(errorMessage);
     } finally {
       setLoading(false);
     }
@@ -105,7 +143,10 @@ export default function Home() {
 
   const reset = () => {
     setView("input");
+    setMode(null);
     setInstanceId("");
+    setGithubRepoUrl("");
+    setGithubIssueUrl("");
     setContext("");
     setRunId("");
     setStatus("idle");
@@ -126,8 +167,14 @@ export default function Home() {
         <AnimatePresence mode="wait">
           {view === "input" && (
             <Input
+              mode={mode}
+              setMode={setMode}
               instanceId={instanceId}
               setInstanceId={setInstanceId}
+              githubRepoUrl={githubRepoUrl}
+              setGithubRepoUrl={setGithubRepoUrl}
+              githubIssueUrl={githubIssueUrl}
+              setGithubIssueUrl={setGithubIssueUrl}
               context={context}
               setContext={setContext}
               loading={loading}
