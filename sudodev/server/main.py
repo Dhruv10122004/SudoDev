@@ -98,8 +98,15 @@ def run_agent(run_id: str, request: AgentRunRequest):
             add_log(run_id, f"[INIT] Processing GitHub repository...", 0)
             add_log(run_id, f"[REPO] URL: {request.github_url}", 0)
             add_log(run_id, f"[REPO] Branch: {request.branch}", 0)
-            add_log(run_id, f"[BUILD] Building Docker image (this may take a few minutes)...", 0)
+
+            if request.issue_url:
+                add_log(run_id, f"[ISSUE] Fetched from GitHub: {request.issue_url}", 0)
+            elif request.issue_number:
+                add_log(run_id, f"[ISSUE] Using GitHub issue #{request.issue_number}", 0)
+            else:
+                add_log(run_id, f"[ISSUE] Using manual description", 0)
             
+            add_log(run_id, f"[BUILD] Building Docker image (this may take a few minutes)...", 0)
             agent_runs[run_id]["message"] = "Cloning repository and building environment..."
             
             repo_name = request.github_url.split('/')[-1].replace('.git', '')
@@ -141,6 +148,13 @@ def run_agent(run_id: str, request: AgentRunRequest):
         add_log(run_id, f"[ERROR] {error_msg}")
         agent_runs[run_id]["status"] = "failed"
         agent_runs[run_id]["message"] = error_msg
+
+    except ValueError as e:
+        error_msg = str(e)
+        add_log(run_id, f"[ERROR] {error_msg}")
+        agent_runs[run_id]["status"] = "failed"
+        agent_runs[run_id]["message"] = f"Validation error: {error_msg}"
+
     except Exception as e:
         error_msg = str(e)
         add_log(run_id, f"[ERROR] {error_msg}")
